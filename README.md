@@ -1,3 +1,2 @@
 # midi-beat-box
-Midi beatbox project of headfirst java
-basic swing for UI
+Midi beatbox project of headfirst java with basic swing for UI
