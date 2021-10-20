@@ -9,10 +9,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
-
-import static Satvik.main.teststuff.MidiSoundGenerator.makeEvent;
 
 public class BeatBox1 {
     JPanel panel;
@@ -22,8 +19,6 @@ public class BeatBox1 {
     Track track;
     JFrame frame;
     JList incomingList;
-    int nextNum;
-    List<String> arr = new ArrayList<>();
     ObjectOutputStream oos;
     ObjectInputStream ois;
     List<Message> messages = new ArrayList<>();
@@ -294,5 +289,17 @@ public class BeatBox1 {
                 ex.printStackTrace();
             }
         }
+    }
+
+    public static MidiEvent makeEvent(int command, int channel, int one, int two, int tick) {
+        MidiEvent event = null;
+        try{
+            ShortMessage a = new ShortMessage();
+            a.setMessage(command, channel, one, two);
+            event = new MidiEvent(a, tick);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+        return event;
     }
 }
