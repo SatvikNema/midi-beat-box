@@ -1,4 +1,4 @@
-package Satvik;
+package Satvik.main.teststuff;
 
 import javax.sound.midi.*;
 import javax.swing.*;

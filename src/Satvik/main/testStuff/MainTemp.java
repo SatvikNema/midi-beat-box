@@ -1,4 +1,4 @@
-package Satvik;
+package Satvik.main.teststuff;
 
 public class MainTemp{
 

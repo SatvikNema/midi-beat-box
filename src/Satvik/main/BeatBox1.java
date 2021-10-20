@@ -2,20 +2,32 @@ package Satvik.main;
 
 import javax.sound.midi.*;
 import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.io.*;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import static Satvik.MidiSoundGenerator.makeEvent;
+import static Satvik.main.teststuff.MidiSoundGenerator.makeEvent;
 
-public class BeatBox {
+public class BeatBox1 {
     JPanel panel;
     List<JCheckBox> checkBoxList;
     Sequencer sequencer;
     Sequence sequence;
     Track track;
     JFrame frame;
+    JList incomingList;
+    int nextNum;
+    List<String> arr = new ArrayList<>();
+    ObjectOutputStream oos;
+    ObjectInputStream ois;
+    List<Message> messages = new ArrayList<>();
+    JTextField userMessage;
 
     String[] instrumentNames = {
             "Base Drum", "Closed Hi-Hat", "Open Hi-Hat", "Acoustic Snare",
@@ -29,7 +41,10 @@ public class BeatBox {
     public static final String SYS_DIR = "/Users/s0n02qm/practise/MidiBeatBox/src/resources/";
 
     public static void main(String[] args) {
-        new BeatBox().buildGui();
+
+        BeatBox1 beatBox1 = new BeatBox1();
+        beatBox1.setupNetworking();
+        beatBox1.buildGui();
     }
 
     private void buildGui() {
@@ -78,6 +93,28 @@ public class BeatBox {
         });
         buttonBox.add(loadSequenceButton);
 
+        JButton sendSequenceButton = new JButton("send sequence to all");
+        sendSequenceButton.addActionListener(actionEvent -> sendStateToServer());
+        buttonBox.add(sendSequenceButton);
+
+        incomingList = new JList();
+        incomingList.addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if(!e.getValueIsAdjusting()){
+                    String selected = (String) incomingList.getSelectedValue();
+                    chaneSequence(messages.stream().filter(message -> message.getMessage().equalsIgnoreCase(selected)).collect(Collectors.toList()).get(0).getCheckBoxState());
+                }
+            }
+        });
+        incomingList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane theList = new JScrollPane(incomingList);
+        buttonBox.add(theList);
+        setJListData();
+
+        userMessage = new JTextField();
+        buttonBox.add(userMessage);
+
         Box nameBox = new Box(BoxLayout.Y_AXIS);
         for(int i=0;i<16;i++){
             nameBox.add(new Label(instrumentNames[i]));
@@ -109,6 +146,47 @@ public class BeatBox {
         frame.setBounds(50, 50, 300, 300);
         frame.pack();
         frame.setVisible(true);
+
+    }
+
+    private void setJListData() {
+        String[] messageList = messages.stream().map(Message::getMessage).collect(Collectors.toList()).toArray(new String[messages.size()]);
+        incomingList.setListData(messageList);
+    }
+
+    private void chaneSequence(boolean[] checkBoxState) {
+        for(int i=0;i<256;i++){
+            checkBoxList.get(i).setSelected(checkBoxState[i]);
+        }
+    }
+
+    private void sendStateToServer() {
+        try {
+            boolean[] arr = new boolean[256];
+            for(int i=0;i<256;i++){
+                if(checkBoxList.get(i).isSelected()){
+                    arr[i] = true;
+                }
+            }
+            Message message = Message.builder().message(userMessage.getText()).checkBoxState(arr);
+            oos.writeObject(message);
+        } catch (IOException ex) {
+            System.out.println("Could not send the message to the server");
+            ex.printStackTrace();
+        }
+    }
+
+    public void setupNetworking(){
+        try {
+            Socket socket = new Socket("127.0.0.1", 5000);
+            ois = new ObjectInputStream(socket.getInputStream());
+            oos = new ObjectOutputStream(socket.getOutputStream());
+            System.out.println("connected to the server");
+            new Thread(new RemoteReader()).start();
+        }catch(IOException ex) {
+            System.out.println("could not connect to the BeatBoxServer");
+            ex.printStackTrace();
+        }
 
     }
 
@@ -199,6 +277,22 @@ public class BeatBox {
             sequencer.setTempoInBPM(120);
         } catch (MidiUnavailableException | InvalidMidiDataException e) {
             e.printStackTrace();
+        }
+    }
+
+    public class RemoteReader implements Runnable {
+        @Override
+        public void run(){
+            Message message;
+            try{
+                while((message = (Message) ois.readObject())!=null){
+                    messages.add(message);
+                    setJListData();
+                }
+            }catch(IOException | ClassNotFoundException ex) {
+                System.out.println("could not read message from the server");
+                ex.printStackTrace();
+            }
         }
     }
 }
